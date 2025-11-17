@@ -1,110 +1,109 @@
-# 🧠 Getting Started with Neural Networks
+# Neural Network Assignment Notebook
 
-For this assignment, we’re taking a **first look at neural networks** — models made up of many artificial neurons. Each neuron can be seen as a **logistic regression unit**, and by combining many of them, we can create a full network of logistic regression units.
-
-Although logistic regression isn’t the only possible building block, it’s the one that was historically used in the first neural networks and remains an intuitive one. So in this assignment, you’ll build **fully connected neural networks** with **sigmoid activations** at every layer.
-
-The key idea is *modularity*: combining simple building blocks (modules) to form more complex systems. Many breakthroughs in AI come from **deep neural networks**, which are just very large stacks of such modules. Therefore, designing modular and reusable code is essential.
+This notebook consists of **three main parts**, each building on the previous one to implement and test a fully working feedforward neural network from scratch.  
+You’ll start with the foundations of a logistic layer, then extend it into a multi-layer network with proper backpropagation, and finally train and evaluate it on several datasets.
 
 ---
 
-## 🧩 Assignment Structure
+## 🧩 Part 1 — Logistic Layer Gradients
 
-This assignment consists of **three parts**:
+**Goal:**  
+Adapt the `LogisticLayer` to the full neural-network setting by implementing correct gradient formulas for backprop through a logistic (sigmoid) layer.
 
----
+### What to Implement
+- Keep the **forward pass**:
+  \[
+  Z = A_{\text{prev}} W^\top + b, \quad A = g(Z)
+  \]
+  where \(g(Z)\) is the sigmoid activation.
 
-## Part 1: Modularity (Logistic Regression)
+- Implement the **backward pass** for a batch:
+  - Upstream gradient: \(\frac{\partial \ell}{\partial A}\)
+  - Local gradients:
+    \[
+    g'(Z) = A \odot (1 - A)
+    \]
+    \[
+    \frac{\partial \ell}{\partial Z} = \frac{\partial \ell}{\partial A} \odot g'(Z)
+    \]
+    \[
+    \frac{\partial \ell}{\partial W} = (\frac{\partial \ell}{\partial Z})^\top A_{\text{prev}}
+    \]
+    \[
+    \frac{\partial \ell}{\partial b} = \text{sum over samples}(\frac{\partial \ell}{\partial Z})
+    \]
+    \[
+    \frac{\partial \ell}{\partial A_{\text{prev}}} = \frac{\partial \ell}{\partial Z} \, W
+    \]
+- Be careful with **batch shapes** and **broadcasting** for \(b\).
 
-The first module you will build is **logistic regression**.  
-You’ve already programmed this algorithm before, but in this assignment, you’ll modify the implementation so it fits a **modular** structure.
-
-The mathematical core stays the same — it’s the way you’ll program and represent it that changes.
-
-### Recap of equations
-
-\[
-\begin{aligned}
-z &= \mathbf{x} \cdot \mathbf{w} + b \\
-\hat{y} &= g(z) \\
-g(z) &= \frac{1}{1+e^{-z}}
-\end{aligned}
-\]
-
-**Cost function:**
-\[
-J_{\mathbf{w},b} = - \frac{1}{m} \sum_{i=1}^m y^{(i)} \log(\hat{y}^{(i)}) + (1 - y^{(i)}) \log(1 - \hat{y}^{(i)})
-\]
-
-**Gradients:**
-\[
-\begin{aligned}
-\frac{\partial J_{\mathbf{w},b}}{\partial b} &= \frac{1}{m}\sum_{i=1}^m (\hat{y}^{(i)} - y^{(i)})\\
-\frac{\partial J_{\mathbf{w},b}}{\partial w_j} &= \frac{1}{m}\sum_{i=1}^m (\hat{y}^{(i)} - y^{(i)})x_j^{(i)}
-\end{aligned}
-\]
-
-Or in vectorized form:
-
-\[
-\frac{\partial J_{\mathbf{w},b}}{\partial \mathbf{w}} = \frac{1}{m}X^T (\mathbf{\hat{y}} - \mathbf{y})
-\]
-
-You’ll still perform gradient descent to update parameters, but the key changes are:
-
-1. **Use computational graphs** — even for simple operations like addition — so you can later handle backpropagation more easily.  
-2. **Use Object-Oriented Programming (OOP)** — define each logistic regression module as a class instance that can be stacked into a larger neural network.
+### Tests (Q1)
+Add or modify tests to verify:
+- All gradients have correct shapes.
+- Gradients aren’t all zeros or NaNs.
+- Numerical gradient check (finite differences) matches your analytic gradients.
 
 ---
 
-### Logistic Regression, Change 1: Computational Graphs
+## 🔁 Part 2 — Backpropagation in the `NN` Class
 
-A convenient way to represent the mathematics in neural networks is using **computational graphs**.  
-They represent how data flows through computations — especially useful for backpropagation.
+**Goal:**  
+Implement end-to-end backprop in the `NN` class by chaining layer backward calls and computing the loss gradient at the output.
 
-For example, a simple computation \( c = a + b \) can be visualized as a graph with nodes for `a`, `b`, and `+`.  
-Even complex formulas like \( c = \ln(ab + 2a^2) \) can be broken into smaller nodes.
+### What to Implement
+- Compute the gradient of the **binary cross-entropy** loss w.r.t. predictions \(\hat{Y}\):
+  \[
+  \frac{\partial \ell}{\partial \hat{Y}} = -\,\frac{Y}{\hat{Y}} + \frac{1-Y}{1-\hat{Y}}
+  \]
+- Run **backward** through layers in reverse order:
+  - Pass the upstream gradient into each layer’s `backward()` function.
+  - Collect each layer’s gradients for \(W\) and \(b\).
+- Update parameters using the provided optimizer or `step()` logic.
 
-You’ll represent **logistic regression as a computational graph**, where each operation — from the dot product to the sigmoid — is a node. Gradients will be shown as dashed arrows flowing in the reverse direction.
-
----
-
-## Part 2: Building a Neural Network
-
-In this part, you’ll take your logistic regression module and **stack multiple of them together** to form a neural network.
-
-Each module (layer) acts as a **fully connected layer** with sigmoid activations.  
-You’ll see how data flows through several connected modules — the **forward pass**.
-
-You’ll:
-
-- Implement `forward` and `backward` methods for your module.  
-- Connect modules so that the output of one becomes the input of the next.  
-- Verify that your modular implementation behaves the same as a standard feed-forward network.
-
-By the end of this part, you’ll have a simple neural network where each layer is a modular logistic regression block.
+### Tests (Q2)
+- Verify that after a backward-then-update step, the loss decreases on a small batch.
+- Check that forward-cache values remain unchanged.
+- (Optional) Run a numerical gradient check on the full model.
 
 ---
 
-## Part 3: Training a Single Module
+## 🚀 Part 3 — Training and Experiments
 
-Finally, you’ll zoom back in and **train one module** (your logistic regression) using gradient descent.
+**Goal:**  
+Train and evaluate your network on several datasets to verify it learns correctly.
 
-You’ll:
+### Case 1 — Logic Gates
+- Provided example trains an **AND** gate; it should converge quickly if everything works.
+- **Assignment 3:** Tune hyperparameters (hidden size, learning rate, epochs) and inspect error patterns.
+- **Assignment 4:** Fix **XOR** training (requires a hidden layer and non-linear activation).
 
-- Implement a **loss function** and its derivative.  
-- Apply **parameter updates** to the weights and bias.  
-- Observe how the module learns from data over multiple epochs.
+### Case 2 — Digits Dataset
+- Use the `digits` dataset (from sklearn or provided cell).
+- **Assignment 5:** Define and train a network `digit_NN` for this dataset.
+- Target: **≥ 90% test accuracy**.
+- Use `plot_costs` to visualize the loss curve.
 
-This part introduces the **learning dynamics** you’ll later use to train an entire neural network — connecting the gradient flow you visualized earlier in the computational graph to actual learning behavior.
+### Case 3 — Iris Dataset
+- **Assignment 6a:** Normalize features to the range [0, 1].
+- **Assignment 6b:** Convert class labels to **one-hot encoding**.
+- **Assignment 6c:** Perform a **train/test split** (30% test set).
+- **Assignment 6d:** Train, evaluate, and plot training cost progression.
 
 ---
 
-## 🧾 Summary
+## ✅ Expected Learning Outcomes
+By completing this assignment, you should be able to:
+- Derive and implement analytic gradients for logistic units.
+- Build a functioning backpropagation pipeline.
+- Train small feedforward networks on logical, numeric, and categorical datasets.
+- Validate gradient correctness via numerical checks.
+- Visualize and interpret learning behavior across epochs.
 
-- Build modular versions of logistic regression using OOP.  
-- Represent computations using computational graphs.  
-- Stack these modules to form a neural network.  
-- Train a single module to understand how learning works.  
+---
 
-This modular foundation will prepare you for **backpropagation and full neural network training** in the next module.
+## 📎 Notes
+- Each part builds directly on the previous one — do not skip cells marked as **TODO**.
+- Check intermediate outputs frequently using assertions and gradient norms.
+- The final notebook should demonstrate working training runs for **AND**, **XOR**, **digits**, and **iris** datasets.
+
+---
